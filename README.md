@@ -6,6 +6,14 @@ Built with Python + PySide6 + yt-dlp.
 
 ---
 
+## Message from the creator
+
+Hey! I'm not a developer - I just wanted a clean way to download videos without dealing with annoying scammy websites and pop-up ads everywhere. So I built this with Claude AI. It does exactly what I need, and maybe it'll help you too. 🙂
+
+Hope it works smoothly for you - and if you run into any bugs, feel free to open an issue on GitHub. I'll do my best to fix it (with Claude's help 😄).
+
+---
+
 ## Features
 
 - 🎬 Download from YouTube, TikTok, Instagram, Facebook (and 1800+ other sites)
