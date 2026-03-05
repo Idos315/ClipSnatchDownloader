@@ -267,8 +267,8 @@ class DownloadWorker(QRunnable):
                     on_progress=lambda p, _: self.signals.conv_progress.emit(p),
                     stop_flag=lambda: self._stop)
             elif self.task.output_format == OutputFormat.MP4:
-                if out and not out.lower().endswith(".mp4"):
-                    self.signals.status.emit("Converting to MP4…")
+                if out:
+                    self.signals.status.emit("Converting to MP4 (H.264)…")
                     out = convert_to_mp4(
                         out, self.task.output_dir,
                         on_progress=lambda p, _: self.signals.conv_progress.emit(p),

@@ -24,6 +24,12 @@ echo "▶ Installing dependencies…"
 pip install --upgrade pip --quiet
 pip install PySide6 yt-dlp pyinstaller --quiet
 
+# Install create-dmg if not present
+if ! command -v create-dmg &>/dev/null; then
+  echo "▶ Installing create-dmg…"
+  brew install create-dmg
+fi
+
 echo "▶ Downloading yt-dlp binary…"
 mkdir -p resources
 curl -L --progress-bar \
@@ -35,8 +41,8 @@ xattr -d com.apple.quarantine resources/yt-dlp 2>/dev/null || true
 FFMPEG_PATH=$(command -v ffmpeg 2>/dev/null || true)
 if [ -n "$FFMPEG_PATH" ]; then
   echo "▶ Bundling ffmpeg…"
-  cp "$FFMPEG_PATH" resources/ffmpeg
-  chmod +x resources/ffmpeg
+  sudo cp "$FFMPEG_PATH" resources/ffmpeg
+  sudo chmod 755 resources/ffmpeg
   xattr -d com.apple.quarantine resources/ffmpeg 2>/dev/null || true
 else
   echo "⚠  ffmpeg not found. Install with: brew install ffmpeg"
@@ -52,15 +58,16 @@ elif [ -f "assets/icon.png" ]; then
   echo "✅ Found icon: assets/icon.png"
 else
   echo "ℹ  No icon found in assets/ — using default."
-  echo "   To add one: put icon.icns in the assets/ folder and re-run."
+fi
+
+ICON_LINE="icon=None,"
+BUNDLE_ICON=""
+if [ -n "$ICON_ARG" ]; then
+  ICON_LINE="icon=\"$ICON_ARG\","
+  BUNDLE_ICON="icon=\"$ICON_ARG\","
 fi
 
 echo "▶ Writing PyInstaller spec…"
-ICON_LINE="icon=None,"
-if [ -n "$ICON_ARG" ]; then
-  ICON_LINE="icon=\"$ICON_ARG\","
-fi
-
 cat > _build.spec << SPEC
 import os
 from pathlib import Path
@@ -84,7 +91,7 @@ coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas,
     strip=False, upx=False, name="ClipSnatch")
 app = BUNDLE(coll, name="ClipSnatch.app",
     bundle_identifier="com.clipsnatch.app", version="1.0.0",
-    icon="$ICON_ARG",
+    $BUNDLE_ICON
     info_plist={
         "NSHighResolutionCapable": True,
         "NSPrincipalClass": "NSApplication",
@@ -98,16 +105,45 @@ pyinstaller --clean --noconfirm _build.spec
 
 xattr -rd com.apple.quarantine dist/ClipSnatch.app 2>/dev/null || true
 
+# ── Build DMG ──────────────────────────────────────────────
+echo "▶ Creating DMG installer…"
+rm -f dist/ClipSnatch.dmg
+
+DMG_ARGS=(
+  --volname "ClipSnatch"
+  --window-pos 200 120
+  --window-size 600 400
+  --icon-size 128
+  --icon "ClipSnatch.app" 150 200
+  --hide-extension "ClipSnatch.app"
+  --app-drop-link 450 200
+)
+
+if [ -n "$ICON_ARG" ]; then
+  DMG_ARGS+=(--volicon "$ICON_ARG")
+fi
+
+create-dmg "${DMG_ARGS[@]}" dist/ClipSnatch.dmg dist/ClipSnatch.app
+
+xattr -rd com.apple.quarantine dist/ClipSnatch.dmg 2>/dev/null || true
+
+# Copy both to Desktop
 echo "▶ Copying to Desktop…"
 rm -rf ~/Desktop/ClipSnatch.app
+rm -f ~/Desktop/ClipSnatch.dmg
 cp -R dist/ClipSnatch.app ~/Desktop/ClipSnatch.app
+cp dist/ClipSnatch.dmg ~/Desktop/ClipSnatch.dmg
 
 rm -f _build.spec
-rm -rf build dist __pycache__
+rm -rf build __pycache__
 
 echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║  ✅  ClipSnatch.app is on your Desktop!              ║"
-echo "║  Double-click to launch. Drag to Applications too.  ║"
-echo "╚══════════════════════════════════════════════════════╝"
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  ✅  Done!                                               ║"
+echo "║                                                          ║"
+echo "║  ClipSnatch.app  — double-click to run directly         ║"
+echo "║  ClipSnatch.dmg  — share this with others               ║"
+echo "║                                                          ║"
+echo "║  Both are on your Desktop.                              ║"
+echo "╚══════════════════════════════════════════════════════════╝"
 echo ""

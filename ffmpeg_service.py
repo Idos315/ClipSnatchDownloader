@@ -79,34 +79,22 @@ def convert_to_mp4(
     if input_path == out_path:
         out_path = str(Path(output_dir) / f"{stem}_converted.mp4")
 
-    # Try stream copy first (fast path)
+    # Always re-encode to H.264 + AAC so QuickTime and all players can open it.
+    # This handles Instagram/TikTok which often use HEVC or other codecs.
     cmd = [
         ffmpeg, "-y",
         "-i", input_path,
-        "-c:v", "copy",
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "22",
         "-c:a", "aac",
+        "-b:a", "192k",
         "-movflags", "+faststart",
         out_path,
     ]
 
     logger.debug("ffmpeg mp4 cmd: %s", cmd)
-    try:
-        _run_ffmpeg(cmd, on_progress, stop_flag)
-    except RuntimeError:
-        # Fallback: full transcode
-        cmd = [
-            ffmpeg, "-y",
-            "-i", input_path,
-            "-c:v", "libx264",
-            "-preset", "fast",
-            "-crf", "22",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-movflags", "+faststart",
-            out_path,
-        ]
-        logger.info("Stream copy failed, retrying with full transcode")
-        _run_ffmpeg(cmd, on_progress, stop_flag)
+    _run_ffmpeg(cmd, on_progress, stop_flag)
 
     if os.path.isfile(input_path) and input_path != out_path:
         try:
